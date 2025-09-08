@@ -99,10 +99,12 @@ class RerouteInput(BaseModel):
     current_courier: Optional[str] = None 
     candidate_pool: Optional[List[Dict[str, Any]]] = None 
     weather_advice: Optional[str] = None 
-class CustomerChangeInput(BaseModel): 
-    request: Dict[str, Any] 
-    courier_position: Dict[str, float] 
+
+class CustomerChangeInput(BaseModel):
+    request: Dict[str, Any]
+    courier_position: Dict[str, float]
     policy_change_rules: Dict[str, Any]
+    eta_min: int # Added to help with reroute calculation
 
 class PolicyGuardInput(BaseModel):
     eta_min: int
@@ -121,6 +123,14 @@ class AuditAgentInput(BaseModel):
     thoughts: List[str]
     events: List[str]
     state_diff: Dict[str, Any]
+    
+class ContainerAgentInput(BaseModel):
+    courier_id: str
+    item_type: str # e.g., 'perishable', 'fragile', 'bulky'
+
+class PromotionGuardInput(BaseModel):
+    promotion_code: str
+    proposed_action: str # e.g., 'reroute', 'reassign', 'stay_on_route'
 
 # --- Global Agent State ---
 class AgentState(BaseModel):

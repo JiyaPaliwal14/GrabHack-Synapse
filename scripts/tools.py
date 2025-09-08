@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 # replace the relative imports with absolute, sibling imports
 from scripts.core_datastructures import (
-    AgentReturnEnvelope, PaymentAgentInput, ReputationAgentInput,
+    AgentReturnEnvelope, ContainerAgentInput, PaymentAgentInput, PromotionGuardInput, ReputationAgentInput,
     CourierBreakdownInput, CapacityAgentInput, SplitDeliveryInput,
     WeatherAgentInput, MerchantStatusInput, DeliveryDispatchInput,
     RerouteInput, CustomerChangeInput, PolicyGuardInput, NotifyAgentInput,
@@ -257,11 +257,34 @@ def reroute_agent(**kwargs) -> dict:
     ).model_dump()
 
 # 10) CustomerChangeAgent
-@tool(args_schema=CustomerChangeInput)
-def customer_change_agent(**kwargs) -> dict:
-    """Applies user-initiated changes mid-route."""
+@tool
+def customer_change_agent(inputs: CustomerChangeInput) -> AgentReturnEnvelope:
+    """Applies user-initiated changes mid-route, like address or payment modes."""
     start_time = time.time()
-    inputs = CustomerChangeInput(**kwargs)
+
+    if inputs.request.get("type") == "address_change":
+        new_address = inputs.request.get("new_address", {})
+        # Simulate a quick feasibility check based on distance
+        current_courier_loc = inputs.courier_position
+        new_dist_km = ((new_address.get('lat', 0) - current_courier_loc.get('lat', 0))**2 + (new_address.get('lon', 0) - current_courier_loc.get('lon', 0))**2)**0.5 * 100
+
+        if new_dist_km < 10:
+            return AgentReturnEnvelope(
+                ok=True,
+                reason="Address change is feasible. Rerouting now.",
+                updates={"customer_change": {"type": "address", "feasible": True, "new_eta_min": inputs.eta_min + int(new_dist_km * 2), "fee": 0.0}},
+                signals={"require_reroute": True},
+                metrics={"latency_ms": (time.time() - start_time) * 1000}
+            )
+        else:
+            return AgentReturnEnvelope(
+                ok=False,
+                reason="Address change is too far and not feasible.",
+                updates={"customer_change": {"type": "address", "feasible": False}},
+                signals={},
+                metrics={"latency_ms": (time.time() - start_time) * 1000}
+            )
+
     if inputs.request.get("type") == "payment":
         return AgentReturnEnvelope(
             ok=True,
@@ -269,15 +292,15 @@ def customer_change_agent(**kwargs) -> dict:
             updates={"customer_change": {"type": "payment", "feasible": True, "eta_min": 0, "fee": 0.0}},
             signals={"notify_user": True},
             metrics={"latency_ms": (time.time() - start_time) * 1000}
-        ).model_dump()
-    
+        )
+
     return AgentReturnEnvelope(
         ok=False,
-        reason="Change request is not feasible.",
+        reason="Change request is not recognized or feasible.",
         updates={},
         signals={},
         metrics={"latency_ms": (time.time() - start_time) * 1000}
-    ).model_dump()
+    )
 
 # 11) PolicyGuard
 @tool(args_schema=PolicyGuardInput)
@@ -340,3 +363,48 @@ def audit_agent(**kwargs) -> dict:
         signals={"trace_complete": True},
         metrics={"latency_ms": (time.time() - start_time) * 1000}
     ).model_dump()
+   
+    
+@tool
+def container_agent(inputs: ContainerAgentInput) -> AgentReturnEnvelope:
+    """Checks if a courier's vehicle is equipped with specialized containers."""
+    start_time = time.time()
+    courier_data = MOCK_DATABASE["couriers"].get(inputs.courier_id, {})
+
+    if inputs.item_type == "perishable" and not courier_data.get("special_equipment", {}).get("insulated_container"):
+        return AgentReturnEnvelope(
+            ok=True,
+            reason="Courier lacks the insulated container for perishable items.",
+            updates={"equipment": {"has_container": False, "required": True}},
+            signals={"needs_new_courier": True},
+            metrics={"latency_ms": (time.time() - start_time) * 1000}
+        )
+    return AgentReturnEnvelope(
+        ok=True,
+        reason="Courier is properly equipped for this delivery.",
+        updates={"equipment": {"has_container": True, "required": True}},
+        signals={},
+        metrics={"latency_ms": (time.time() - start_time) * 1000}
+    )
+    
+@tool
+def promotion_guard(inputs: PromotionGuardInput) -> AgentReturnEnvelope:
+    """Validates if a proposed reroute or change violates an active promotion."""
+    start_time = time.time()
+
+    if inputs.promotion_code == "PERISHABLE_PROMO" and inputs.proposed_action != "stay_on_route":
+        return AgentReturnEnvelope(
+            ok=True,
+            reason=f"Proposed action '{inputs.proposed_action}' violates promotion {inputs.promotion_code}.",
+            updates={"policy": {"status": "WARN", "violations": ["PROMOTION_VIOLATION"]}},
+            signals={"cancel_reroute_to_avoid_penalty": True},
+            metrics={"latency_ms": (time.time() - start_time) * 1000}
+        )
+    return AgentReturnEnvelope(
+        ok=True,
+        reason="Proposed action does not violate any active promotions.",
+        updates={"policy": {"status": "OK", "violations": []}},
+        signals={},
+        metrics={"latency_ms": (time.time() - start_time) * 1000}
+    )
+
