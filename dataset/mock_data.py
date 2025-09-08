@@ -1,41 +1,37 @@
 import random
 from typing import Dict, Any
 
-# Mock database for all the necessary data
-MOCK_DATABASE = {
-    # Simulates a payment gateway with order and transaction details
+MOCK_DATABASE: Dict[str, Any] = {
     "payment_gateway": {
         "order_12345": {
             "customer_id": "cust_987",
-            "amount": 25.50,
+            "amount": 249.0,
             "transactions": [
-                {"id": "tx_abc", "amount": 25.50, "status": "confirmed"},
-                {"id": "tx_def", "amount": 25.50, "status": "confirmed"}
+                {"id": "tx_abc", "amount": 249.0, "status": "confirmed"},
+                {"id": "tx_def", "amount": 249.0, "status": "authorized"}
             ]
         }
     },
-    # Simulates a courier management system
     "couriers": {
         "courier_A": {
             "reputation_score": 0.85,
-            "vehicle_capacity": "large",
+            "vehicle_capacity": {"type": "van", "vol_cap_l": 500, "weight_cap_kg": 200},
             "status": "available",
             "location": (40.7128, -74.0060) # New York City
         },
         "courier_B": {
             "reputation_score": 0.30,
-            "vehicle_capacity": "small",
-            "status": "en_route_to_pickup",
-            "location": (40.7306, -73.9995) # Near pickup location
+            "vehicle_capacity": {"type": "scooter", "vol_cap_l": 60, "weight_cap_kg": 30},
+            "status": "stuck",
+            "location": (40.7306, -73.9995)
         },
         "courier_C": {
             "reputation_score": 0.95,
-            "vehicle_capacity": "medium",
-            "status": "en_route_to_pickup",
-            "location": (40.7580, -73.9855) # Times Square
+            "vehicle_capacity": {"type": "car", "vol_cap_l": 250, "weight_cap_kg": 100},
+            "status": "available",
+            "location": (40.7580, -73.9855)
         }
     },
-    # Simulates a weather service
     "weather_service": {
         "New York": {
             "alert": "severe_rain_warning",
@@ -45,16 +41,27 @@ MOCK_DATABASE = {
             "alert": "none",
             "reroute_required": False
         }
+    },
+    "merchants": {
+        "M123": {
+            "health": "HEALTHY",
+            "prep_eta_min": 14,
+            "oos_items": []
+        },
+        "M456": {
+            "health": "OFFLINE",
+            "prep_eta_min": 0,
+            "oos_items": []
+        }
     }
 }
 
-# Simulates the order details with item sizes
-ORDER_ITEMS_DATA = {
+ORDER_ITEMS_DATA: Dict[str, Any] = {
     "order_12345": {
         "items": [
-            {"item_id": "item_1", "size": "small"},
-            {"item_id": "item_2", "size": "small"},
-            {"item_id": "item_3", "size": "bulky"}
+            {"sku": "MILK-1L", "qty": 1, "vol_l": 1.0, "weight_kg": 1.0, "is_bulky": False},
+            {"sku": "BREAD", "qty": 1, "vol_l": 2.0, "weight_kg": 0.5, "is_bulky": False},
+            {"sku": "WATER-20L", "qty": 1, "vol_l": 20.0, "weight_kg": 20.0, "is_bulky": True}
         ]
     }
 }
