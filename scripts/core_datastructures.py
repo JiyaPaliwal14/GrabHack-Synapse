@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field, conlist
+from pydantic import BaseModel, ConfigDict, Field, conlist
 from enum import Enum
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
@@ -72,29 +72,36 @@ class SplitDeliveryInput(BaseModel):
     policy_split_rules: Dict[str, Any]
     user_prefs: Dict[str, Any]
 
-class WeatherAgentInput(BaseModel):
-    courier_location: str
-    destination_city: str
+class WeatherAgentInput(BaseModel): 
+        courier_location: str 
+        destination_city: str
 
-class MerchantStatusInput(BaseModel):
-    merchant_id: str
-    items: List[Dict[str, Any]] = Field(..., min_items=1)
+class MerchantStatusInput(BaseModel): 
+    merchant_id: str 
+    items: List[Dict[str, Any]] = Field(..., min_items=1) 
+    
+
+
+class Location(BaseModel):
+    lat: float
+    lng: float
+    city: Optional[str] = None
+    model_config = ConfigDict(extra="allow")  # tolerate extra keys if you add more later
 
 class DeliveryDispatchInput(BaseModel):
-    pickup_location: Dict[str, float]
-    drop_location: Dict[str, float]
+    pickup_location: Location
+    drop_location: Location
     readiness_eta_min: int
     priority_flag: bool
 
-class RerouteInput(BaseModel):
-    reason: str
-    current_courier: Optional[str] = None
-    candidate_pool: Optional[List[Dict[str, Any]]] = None
-    weather_advice: Optional[str] = None
-
-class CustomerChangeInput(BaseModel):
-    request: Dict[str, Any]
-    courier_position: Dict[str, float]
+class RerouteInput(BaseModel): 
+    reason: str 
+    current_courier: Optional[str] = None 
+    candidate_pool: Optional[List[Dict[str, Any]]] = None 
+    weather_advice: Optional[str] = None 
+class CustomerChangeInput(BaseModel): 
+    request: Dict[str, Any] 
+    courier_position: Dict[str, float] 
     policy_change_rules: Dict[str, Any]
 
 class PolicyGuardInput(BaseModel):
@@ -121,3 +128,4 @@ class AgentState(BaseModel):
     messages: List[BaseMessage] = Field(default_factory=list)
     order_details: Dict[str, Any] = Field(default_factory=dict)
     audit_log: List[Dict[str, Any]] = Field(default_factory=list)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
